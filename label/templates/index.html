@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IML Tagger Labeler</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+        }
+        #image-container {
+            width: 384px;
+            height: 384px;
+            margin: 0 10px;
+            object-fit: contain;
+            border-style: solid;
+            border-width: 2px;
+        }
+        #image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <h1>IML Tagger Labeler</h1>
+
+    <div>
+        <p><span id="current-idx">1</span> / {{ total_images }}</p>
+        <p>Total Labels: <span id="total-labels">{{ total_labels }}</span></p>
+    </div>
+
+    <h3>Navigation</h3>
+    <div>
+        <button onclick="prevImage()">Previous</button>
+        <button onclick="nextImage()">Next</button>
+        <button onclick="getRandomImage()">Random</button>
+        <button onclick="nextLabeledImage(-1)">Previous Label</button>
+        <button onclick="nextLabeledImage(1)">Next Label</button>
+    </div>
+
+    <h3>Label</h3>
+    <div>
+        <textarea type="text" id="label-input" placeholder="Enter label here" rows="4" cols="50"></textarea>
+        <br>
+        <button onclick="addLabel()">Submit Label</button>
+    </div>
+
+    <h3>Image</h3>
+    <div id="image-container">
+        <img  id="image" src="" alt="Image">
+    </div>
+
+    <script>
+
+        const total_images = {{ total_images }};
+        let total_labels = {{ total_labels }};
+        let current_index = 1
+
+        window.onload = function() {
+            fetchImageByIndex(current_index)
+        };
+
+        function fetchImageByIndex(index) {
+            const imageUrl = `/image/${index}`;
+            document.getElementById("image").src = imageUrl;
+            document.getElementById('current-idx').innerText = index;
+            document.getElementById('label-input').value = "";
+        }
+
+        function updateLabelCount() {
+            total_labels += 1
+            document.getElementById('total-labels').value = total_labels;
+        }
+
+        function nextImage() {
+            current_index = (current_index + 1) % total_images;
+            fetchImageByIndex(current_index);
+        }
+
+        function prevImage() {
+            current_index = (current_index - 1 + total_images) % total_images;
+            fetchImageByIndex(current_index);
+        }
+
+        function getRandomImage() {
+            random_index = Math.floor(Math.random() * total_images);
+            fetchImageByIndex(random_index);
+        }
+
+        function addLabel() {
+            const caption = document.getElementById('label-input').value;
+            if (!caption) {
+                alert('Please enter a label before submitting.');
+                return;
+            }
+            fetch('/label', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    'id': current_index,
+                    'caption': caption,
+                })
+            }).then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateLabelCount()
+                    getRandomImage()
+                } else {
+                    alert('Failed to save label.');
+                }
+            }).catch(error => {
+                console.error('Error saving label:', error);
+                alert('Error saving label. See console for details.');
+            });
+        }
+
+        function nextLabeledImage(step) {
+            fetch('/next_labeled_image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    'id': current_index,
+                    'step': step
+                })
+            }).then(response => response.json())
+            .then(data => {
+                current_index = parseInt(data.img_id);
+                fetchImageByIndex(current_index);
+                document.getElementById('label-input').value = data.label;
+            }).catch(error => {
+                console.error(error);
+            });
+        }
+        // function getPrediction() {
+        //     fetch('/predict', {
+        //         method: 'POST',
+        //         headers: { 'Content-Type': 'application/json' },
+        //         body: JSON.stringify({
+        //             'img_1_id': idx_1,
+        //             'img_2_id': idx_2
+        //         })
+        //     }).then(response => response.json())
+        //     .then(data => {
+        //         const prediction = data.prediction;
+        //         document.getElementById('prediction-label').innerText = prediction ? "Right Image Preferred" : "Left Image Preferred";
+        //     }).catch(error => {
+        //         console.error('Error getting prediction:', error);
+        //         alert('Error getting prediction. See console for details.');
+        //     });
+        // }
+
+    </script>
+</body>
+</html>
