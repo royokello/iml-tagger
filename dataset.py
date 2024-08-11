@@ -2,7 +2,6 @@ import os
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
-from torch.nn.utils.rnn import pad_sequence
 
 class ImageDataset(Dataset):
     def __init__(self, working_dir, transform=None):
@@ -12,7 +11,7 @@ class ImageDataset(Dataset):
         self.image_filenames = []
 
         self.labels = []
-        self.unique_classes = set()
+        self.unique_tags = set()
 
         for filename in os.listdir(self.label_dir):
             if filename.endswith('.txt'):
@@ -20,34 +19,27 @@ class ImageDataset(Dataset):
                     label = file.read().strip()
                     tags = [tag.strip() for tag in label.split(',')]
                     self.labels.append(tags)
-                    self.unique_classes.update(tags)
-                    # replace '.txt' with '.png' and append to image_filenames
+                    self.unique_tags.update(tags)
+                image_filename = filename.replace('.txt', '.png')
+                self.image_filenames.append(image_filename)
 
-        self.tag_to_index = {tag: idx for idx, tag in enumerate(self.unique_classes)}
+        self.tag_to_index = {tag: idx for idx, tag in enumerate(self.unique_tags)}
 
     def __len__(self):
         return len(self.labels)
 
     def __getitem__(self, idx):
-        image_filename = os.listdir(self.image_dir)[idx]
+        image_filename = self.image_filenames[idx]
         img_path = os.path.join(self.image_dir, image_filename)
 
         image = Image.open(img_path).convert("RGB")
         if self.transform:
             image = self.transform(image)
 
-        labels = self.labels[idx]
-        label_indices = torch.zeros(len(self.unique_classes))
+        label_indices = torch.zeros(len(self.unique_tags))
         for tag in self.labels[idx]:
             label_indices[self.tag_to_index[tag]] = 1
         return image, label_indices
 
-    def get_num_classes(self):
-        return len(self.unique_classes)
-    
-
-def collate_fn(batch):
-    images, labels = zip(*batch)
-    images = torch.stack(images)  # assuming images are already tensors
-    labels = pad_sequence(labels, batch_first=True, padding_value=0)  # Pad labels to the longest in the batch
-    return images, labels
+    def get_num_tags(self):
+        return len(self.unique_tags)

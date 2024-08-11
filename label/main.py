@@ -3,13 +3,18 @@ import json
 import os
 from flask import Flask, jsonify, render_template, request, send_from_directory
 import torch
+from inference import predict_tags
+from utils import get_model_by_latest
 
 app = Flask(__name__)
 
+low_res_dir = ""
 std_img_dir = ""
 labels_dir = ""
 labeled_image_ids = []
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = None
+class_mappings = {}
 
 @app.route('/')
 def index():
@@ -61,24 +66,35 @@ def label_image():
     else:
         return jsonify(success=False)
     
-# @app.route('/predict', methods=['POST'])
-# def predict_choice():
-#     global low_res_path, device, model
-#     data = request.json
-#     if data:
-#         image_1_path = os.path.join(low_res_path, f"{data['img_1_id']}.png")
-#         image_2_path = os.path.join(low_res_path, f"{data['img_2_id']}.png")
-#         prediction = predict(device=device, model=model, image_1_path=image_1_path, image_2_path=image_2_path)
-#         return jsonify(prediction=prediction)
-#     else:
-#         return jsonify(success=False, message="Invalid data"), 400
+@app.route('/predict', methods=['POST'])
+def predict_caption():
+    global low_res_dir, device, model, class_mappings
+    data = request.json
+    print(f"data: {data}")
+    if data:
+        image_path = os.path.join(low_res_dir, f"{data['image_id']}.png")
+        prediction = predict_tags(
+            device=device,
+            model=model,
+            image_path=image_path,
+            index_to_tag=class_mappings
+        )
+        return jsonify(prediction=prediction)
+    else:
+        return jsonify(success=False)
 
 def label(working_dir: str):
-    global std_img_dir, labels_dir, labeled_image_ids
+    global std_img_dir, labels_dir, labeled_image_ids, device, model, class_mappings, low_res_dir
+    low_res_dir = os.path.join(working_dir, 'ranker', 'output', '256p')
     std_img_dir = os.path.join(working_dir, 'ranker', 'output', '512p')
     labels_dir = os.path.join(working_dir, 'tagger', 'labels')
     os.makedirs(labels_dir, exist_ok=True)
     labeled_image_ids = sorted([int(filename[:-4]) for filename in os.listdir(labels_dir) if filename.endswith('.txt')])
+    models_dir = os.path.join(working_dir, 'tagger', 'models')
+    model_and_class_mappings = get_model_by_latest(device=device, directory=models_dir)
+    if model_and_class_mappings:
+        model, class_mappings = model_and_class_mappings
+        model.eval()
     app.run(debug=True)
 
 if __name__ == "__main__":

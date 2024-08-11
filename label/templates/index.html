@@ -48,6 +48,7 @@
         <textarea type="text" id="label-input" placeholder="Enter label here" rows="4" cols="50"></textarea>
         <br>
         <button onclick="addLabel()">Submit Label</button>
+        <button onclick="getPrediction()">Predict</button>
     </div>
 
     <h3>Image</h3>
@@ -73,7 +74,7 @@
         }
 
         function updateLabelCount() {
-            total_labels += 1
+            total_labels = total_labels + 1
             document.getElementById('total-labels').value = total_labels;
         }
 
@@ -89,7 +90,8 @@
 
         function getRandomImage() {
             random_index = Math.floor(Math.random() * total_images);
-            fetchImageByIndex(random_index);
+            current_index = random_index;
+            fetchImageByIndex(current_index);
         }
 
         function addLabel() {
@@ -136,23 +138,21 @@
                 console.error(error);
             });
         }
-        // function getPrediction() {
-        //     fetch('/predict', {
-        //         method: 'POST',
-        //         headers: { 'Content-Type': 'application/json' },
-        //         body: JSON.stringify({
-        //             'img_1_id': idx_1,
-        //             'img_2_id': idx_2
-        //         })
-        //     }).then(response => response.json())
-        //     .then(data => {
-        //         const prediction = data.prediction;
-        //         document.getElementById('prediction-label').innerText = prediction ? "Right Image Preferred" : "Left Image Preferred";
-        //     }).catch(error => {
-        //         console.error('Error getting prediction:', error);
-        //         alert('Error getting prediction. See console for details.');
-        //     });
-        // }
+        function getPrediction() {
+            fetch('/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    'image_id': current_index
+                })
+            }).then(response => response.json())
+            .then(data => {
+                document.getElementById('label-input').value = data.prediction;
+            }).catch(error => {
+                console.error('Error getting prediction:', error);
+                alert('Error getting prediction. See console for details.');
+            });
+        }
 
     </script>
 </body>
