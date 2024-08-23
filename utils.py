@@ -20,7 +20,7 @@ def log_print(message):
     print(message)
     logging.info(message)
     
-def generate_model_name(base_model: str | None, epochs: int) -> str:
+def generate_model_name(epochs: int, base_model: str | None = None) -> str:
     """
     Generate a unique model name based on current timestamp, base model (if any), classes, number of samples, and epochs.
     """
